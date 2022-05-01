@@ -526,15 +526,77 @@ for(i in 1:length(shplist)){
 
 
 #get first 100 fourier coefficients for each shape
-shp_fd<-matrix(0,nrow = length(shp_pad),ncol = 100)
-for(i in 1:length(shp_fd)){
+numFD<-50
+shp_fd_cc<-matrix(0,nrow = length(shp_pad),ncol = numFD)
+for(i in 1:nrow(shp_fd)){
   curfft<- fft(shp_pad[[i]])
-  shp_fd[i,]<-abs(curfft[c(2:51,length(curfft):(length(curfft)-49))])/abs(curfft[1])
+  shp_fd_cc[i,]<-abs(curfft[c(2:(1+numFD/2),length(curfft):(length(curfft)-(-1+numFD/2)))])/abs(curfft[2])
+}
+
+Hongyi_dataset_fd_cc<-cbind(Hongyi_dataset,shp_fd_cc)
+
+rfmod<-ranger(y=Hongyi_dataset$loga_event,x=Hongyi_dataset[,4:(ncol(Hongyi_dataset))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
+
+rfmod<-ranger(y=Hongyi_dataset$loga_event,x=Hongyi_dataset_fd_cc[,4:(ncol(Hongyi_dataset_fd_cc))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
+
+rfmod<-ranger(y=Hongyi_dataset$b_event,x=Hongyi_dataset[,4:(ncol(Hongyi_dataset))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
+
+rfmod<-ranger(y=Hongyi_dataset$b_event,x=Hongyi_dataset_fd_cc[,4:(ncol(Hongyi_dataset_fd_cc))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
+
+
+#distance to outlet parameterization
+shplist_dt<-list()
+for(i in 1:nrow(Hongyi_dataset)){
+  gc<-Hongyi_dataset$gridcode[i]
+  which_shp<-which(as.numeric(shp@data$gridcode)==gc)
+  curshp<-shp@polygons[[which_shp]]@Polygons
+  curshp<-curshp[[which.max(lapply(curshp, object.size))]]@coords
+  curloc<-c(Hongyi_dataset$Longitude[Hongyi_dataset$gridcode==gc],Hongyi_dataset$Latitude[Hongyi_dataset$gridcode==gc])
+  start<-which.min((curshp[,1]-curloc[1])^2+(curshp[,2]-curloc[2])^2)
+  curshp<-curshp[c(start:nrow(curshp),1:(start-1)),]
+  
+  d=rowSums(t(t(curshp)-curloc)^2)
+  shplist_dt[[i]]<-d
+}
+
+what<-lapply(shplist_dt,length)
+bigshp<-max(as.numeric(what))
+powersof2<-2^(1:30)
+newlength<-powersof2[which(bigshp<powersof2)[1]]
+shp_pad_dt<-list()
+for(i in 1:length(shplist_dt)){
+  curshp<-shplist_dt[[i]]
+  newshp<-rep(0,newlength)
+  newshp[1:length(curshp)]<-curshp
+  shp_pad_dt[[i]]<-newshp
 }
 
 
+numFD<-10
+shp_fd_dt<-matrix(0,nrow = length(shp_pad_dt),ncol = numFD)
+for(i in 1:nrow(shp_fd_dt)){
+  curfft<- fft(shp_pad_dt[[i]])
+  shp_fd_dt[i,]<-abs(curfft[2:(numFD+1)])/abs(curfft[1])
+}
+
+Hongyi_dataset_fd_dt<-cbind(Hongyi_dataset,shp_fd_dt)
+
+rfmod<-ranger(y=Hongyi_dataset$loga_event,x=Hongyi_dataset_fd_dt[,4:(ncol(Hongyi_dataset_fd_dt))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
 
 
+rfmod<-ranger(y=Hongyi_dataset$b_event,x=Hongyi_dataset_fd_dt[,4:(ncol(Hongyi_dataset_fd_dt))],importance = "permutation")
+rfmod$r.squared
+rfmod$variable.importance
 
 
 
