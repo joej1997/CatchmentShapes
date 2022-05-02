@@ -525,12 +525,12 @@ for(i in 1:length(shplist)){
 }
 
 
-#get first 100 fourier coefficients for each shape
-numFD<-50
-shp_fd_cc<-matrix(0,nrow = length(shp_pad),ncol = numFD)
-for(i in 1:nrow(shp_fd)){
+#get first numFD fourier coefficients for each shape
+numFD<-10
+shp_fd_cc<-matrix(0,nrow = length(shp_pad),ncol = numFD-1)
+for(i in 1:nrow(shp_fd_cc)){
   curfft<- fft(shp_pad[[i]])
-  shp_fd_cc[i,]<-abs(curfft[c(2:(1+numFD/2),length(curfft):(length(curfft)-(-1+numFD/2)))])/abs(curfft[2])
+  shp_fd_cc[i,]<-abs(curfft[c(3:(1+numFD/2),length(curfft):(length(curfft)-(-1+numFD/2)))])/abs(curfft[2])
 }
 
 Hongyi_dataset_fd_cc<-cbind(Hongyi_dataset,shp_fd_cc)
@@ -607,14 +607,13 @@ rfmod$variable.importance
 #calculate complexity
 Hongyi_dataset$shp_complexity<-NA
 
-poss_numfor<-seq(from=1,by=2,to=101)
+poss_numfor<-seq(from=3,by=2,to=101)
 error_max_norm<-matrix(0,nrow=nrow(Hongyi_dataset),ncol=length(poss_numfor))
 error_2_norm<-matrix(0,nrow=nrow(Hongyi_dataset),ncol=length(poss_numfor))
 
 for(i in 1:length(shp_pad)){
-  curshp<-shp_pad[[i]]
-  z=complex(length.out = nrow(curshp),real=curshp[,1],imaginary=curshp[,2])
-  zfft=fft(z)
+  curshp<-shplist[[i]]
+  zfft=fft(curshp)
   
   for(j in 1:length(poss_numfor)){
     numFor<-poss_numfor[j]
@@ -622,9 +621,11 @@ for(i in 1:length(shp_pad)){
     to_keep<-c(seq(from=1,by=1,ceiling(numFor/2)),seq(from=length(zfft),by=-1,length.out = floor(numFor/2)))
     zfft_thresholded[to_keep]<-zfft[to_keep]
     estimate= fft(zfft_thresholded,inverse = T)/length(zfft_thresholded)
-    error_max_norm[i,j]= max(abs(z- estimate))
-    error_2_norm[i,j]= mean(abs(z- estimate)^2)
+    error_max_norm[i,j]= max(abs(curshp- estimate))
+    error_2_norm[i,j]= mean(abs(curshp- estimate)^2)
   }
+  error_max_norm[i,]= error_max_norm[i,]/error_max_norm[i,1]
+  error_2_norm[i,]=error_2_norm[i,]/error_2_norm[i,1]
   print(i)
 }
 
@@ -643,7 +644,7 @@ rfmod$r.squared
 rfmod$variable.importance
 
 #predicting b
-rfmod<-ranger(y=Hongyi_dataset$b_event,x=Hongyi_dataset[,4:(ncol(Hongyi_dataset)-1)],importance = "permutation")
+rfmod<-ranger(y=Hongyi_dataset$b_event,x=Hongyi_dataset[,4:(ncol(Hongyi_dataset))],importance = "permutation")
 rfmod$r.squared
 rfmod$variable.importance
 
